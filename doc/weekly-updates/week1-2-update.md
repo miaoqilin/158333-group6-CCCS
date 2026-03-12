@@ -1,7 +1,7 @@
 # Week 1 Update
 
 ## Date
-[Please fill in the date]
+3.10
 
 ## Team Progress
 This week, the team completed the initial project setup and documentation work.
