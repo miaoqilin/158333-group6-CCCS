@@ -1,13 +1,10 @@
-# Week 1 Kickoff Meeting Notes
+# Week 1-2 Kickoff Meeting Notes
 
 ## Meeting Title
 Week 1 Kickoff Meeting
 
 ## Project
 Campus Coffee and Catering Services Web Application
-
-## Date
-[Please fill in the meeting date]
 
 ## Attendees
 - Yanbo Du
@@ -21,7 +18,7 @@ Campus Coffee and Catering Services Web Application
 - Review proposal requirements
 - Finalize initial project scope
 - Confirm team roles
-- Plan Week 1 tasks
+- Plan Week 1-2 tasks
 - Decide repository setup and workflow
 - Discuss Figma prototype arrangement
 
@@ -61,7 +58,7 @@ Supporting tools may include:
 - **Tianshi Yang**: catering/vendor API draft, workflow planning
 - **Yiqi Sun**: database schema draft, entity relationship design
 
-### 5. Week 1 Task Allocation
+### 5. Week 1-2 Task Allocation
 - Set up the GitHub repository
 - Create README and documentation structure
 - Create branch and commit rules
