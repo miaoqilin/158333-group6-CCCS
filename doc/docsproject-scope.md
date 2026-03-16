@@ -85,8 +85,8 @@ The system is expected to include these main collections:
 - UI Prototype: Figma
 - Version Control: GitHub
 
-## Week 1 Scope
-For Week 1, the team should focus on:
+## Week 1-2 Scope
+For Week 1-2, the team should focus on:
 - Discussing requirements
 - Finalizing project scope
 - Setting up the GitHub repository
