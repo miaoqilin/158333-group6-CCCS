@@ -2,7 +2,8 @@ import { useState } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 
-function Login() {
+function Register() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -13,27 +14,33 @@ function Login() {
     e.preventDefault();
 
     try {
-      const { data } = await axios.post(
-        "http://localhost:5000/api/auth/login",
-        { email, password }
-      );
+      await axios.post("http://localhost:5000/api/auth/register", {
+        name,
+        email,
+        password,
+      });
 
-      localStorage.setItem("userInfo", JSON.stringify(data));
-
-      navigate("/profile");
+      alert("Register successful!");
+      navigate("/login");
 
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed");
+      setError(err.response?.data?.message || "Registration failed");
     }
   };
 
   return (
     <div style={styles.container}>
-      <h2>Login</h2>
+      <h2>Register</h2>
 
       {error && <p style={styles.error}>{error}</p>}
 
       <form onSubmit={submitHandler} style={styles.form}>
+        <input
+          placeholder="Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+
         <input
           type="email"
           placeholder="Email"
@@ -48,11 +55,11 @@ function Login() {
           onChange={(e) => setPassword(e.target.value)}
         />
 
-        <button type="submit">Login</button>
+        <button type="submit">Register</button>
       </form>
 
       <p>
-        New user? <Link to="/register">Register</Link>
+        Already have an account? <Link to="/login">Login</Link>
       </p>
     </div>
   );
@@ -75,4 +82,4 @@ const styles = {
   },
 };
 
-export default Login;
+export default Register;
