@@ -1,48 +1,33 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const dotenv = require("dotenv");
-const cors = require("cors");
+// Import required modules
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+require('dotenv').config();
 
-// 路由
-const authRoutes = require("./routes/auth");
-const userRoutes = require("./routes/users");
-const menuRoutes = require("./routes/menu");
-
-dotenv.config();
-
+// Initialize Express app
 const app = express();
-const PORT = process.env.PORT || 5000;
 
-
-app.use(
-  cors({
-    origin: "http://localhost:3000",
-  })
-);
-
-
+// Middleware
+app.use(cors());
 app.use(express.json());
 
+// Connect to MongoDB
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.log('DB error:', err));
 
-app.get("/", (req, res) => {
-  res.send("Backend server is running");
+// Import routes
+const authRoutes = require('./routes/authRoutes');
+const menuRoutes = require('./routes/menuRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+
+// Use routes
+app.use('/api/auth', authRoutes);
+app.use('/api/menu', menuRoutes);
+app.use('/api/orders', orderRoutes);
+
+// Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
-
-
-app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/menu", menuRoutes);
-
-
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => {
-    console.log("MongoDB connected");
-
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.error(err);
-  });
