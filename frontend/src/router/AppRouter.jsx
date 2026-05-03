@@ -5,6 +5,7 @@ import Login from "../pages/Login";
 import Menu from "../pages/Menu";
 import Cart from "../pages/Cart";
 import Profile from "../pages/Profile";
+import MyOrders from "../pages/MyOrders";
 
 export default function AppRouter() {
   return (
@@ -19,6 +20,7 @@ export default function AppRouter() {
           <Link style={styles.link} to="/cart">Cart</Link>
           <Link style={styles.link} to="/profile">Profile</Link>
           <Link style={styles.link} to="/login">Login</Link>
+          <Link style={styles.link} to="/orders">Orders</Link>
         </div>
       </nav>
 
@@ -31,6 +33,7 @@ export default function AppRouter() {
           <Route path="/cart" element={<Cart />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/orders" element={<MyOrders />} />
         </Routes>
       </div>
     </BrowserRouter>

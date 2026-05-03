@@ -1,45 +1,95 @@
-const Order = require('../models/Order');
+const Order = require("../models/Order");
 
-// Create a new order
-exports.createOrder = async (req, res) => {
+const createOrder = async (req, res) => {
   try {
-    const order = await Order.create(req.body);
-    res.status(201).json(order);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const { orderItems, totalPrice } = req.body;
+
+    if (!orderItems || orderItems.length === 0) {
+      return res.status(400).json({ message: "No order items provided" });
+    }
+
+    if (totalPrice === undefined) {
+      return res.status(400).json({ message: "Total price is required" });
+    }
+
+    const order = await Order.create({
+      user: req.user._id,
+      orderItems,
+      totalPrice,
+      status: "pending",
+    });
+
+    return res.status(201).json(order);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 };
 
-// Get orders for logged-in user
-exports.getUserOrders = async (req, res) => {
+const getMyOrders = async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.body.user });
-    res.json(orders);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
+    return res.json(orders);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 };
 
-// Get all orders (admin)
-exports.getAllOrders = async (req, res) => {
+const getOrderById = async (req, res) => {
   try {
-    const orders = await Order.find();
-    res.json(orders);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const order = await Order.findById(req.params.id).populate("user", "name email");
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (
+      order.user._id.toString() !== req.user._id.toString() &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({ message: "Not allowed to view this order" });
+    }
+
+    return res.json(order);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 };
 
-// Update order status
-exports.updateOrderStatus = async (req, res) => {
+const updateOrderStatus = async (req, res) => {
   try {
-    const order = await Order.findByIdAndUpdate(
-      req.params.id,
-      { status: req.body.status },
-      { new: true }
-    );
-    res.json(order);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const { status } = req.body;
+
+    const allowedStatuses = [
+      "pending",
+      "paid",
+      "preparing",
+      "ready",
+      "completed",
+      "cancelled",
+    ];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
+
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    order.status = status;
+    const updatedOrder = await order.save();
+
+    return res.json(updatedOrder);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
+};
+
+module.exports = {
+  createOrder,
+  getMyOrders,
+  getOrderById,
+  updateOrderStatus,
 };
