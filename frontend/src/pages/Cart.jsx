@@ -1,58 +1,76 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
-import { getCart, saveCart } from "../utils/cart";
 import { useNavigate } from "react-router-dom";
+import api from "../services/api";
+import {
+  getCart,
+  saveCart,
+  clearCart,
+  updateCartItemQty,
+  removeCartItem,
+} from "../utils/cart";
+import { getUserInfo, updateStoredUserProfile } from "../utils/auth";
 
 function Cart() {
-  const [cart, setCart] = useState([]);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-
   const navigate = useNavigate();
+
+  const [cart, setCart] = useState([]);
+  const [profile, setProfile] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState("credit_card");
+  const [deliveryTime, setDeliveryTime] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [note, setNote] = useState("");
+  const [useCoupon, setUseCoupon] = useState(true);
+  const [saveNoteAsPreference, setSaveNoteAsPreference] = useState(false);
+  const [saveAddressAsPreference, setSaveAddressAsPreference] = useState(false);
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const availableCoupon = profile?.coupons?.find((coupon) => !coupon.isUsed);
+  const discount = useCoupon && availableCoupon ? Math.min(availableCoupon.amount, subtotal) : 0;
+  const total = Math.max(subtotal - discount, 0);
 
   useEffect(() => {
     setCart(getCart());
+
+    const fetchProfile = async () => {
+      const user = getUserInfo();
+
+      if (!user?.token) {
+        return;
+      }
+
+      try {
+        const { data } = await api.get("/auth/profile");
+        setProfile(data);
+        setNote(data.defaultOrderNote || "");
+        setDeliveryAddress(data.deliveryPreferences?.defaultAddress || "");
+        setDeliveryTime(data.deliveryPreferences?.defaultDeliveryTime || "");
+      } catch {
+        // profile auto-fill is optional
+      }
+    };
+
+    fetchProfile();
   }, []);
 
-  const increaseQty = (id) => {
-    const updated = cart.map((item) =>
-      item._id === id ? { ...item, qty: item.qty + 1 } : item
-    );
+  const qtyHandler = (item, nextQty) => {
+    const updated = updateCartItemQty(item._id, item.specialInstructions, nextQty);
     setCart(updated);
-    saveCart(updated);
   };
 
-  const decreaseQty = (id) => {
-    const updated = cart.map((item) =>
-      item._id === id
-        ? { ...item, qty: item.qty > 1 ? item.qty - 1 : 1 }
-        : item
-    );
+  const removeHandler = (item) => {
+    const updated = removeCartItem(item._id, item.specialInstructions);
     setCart(updated);
-    saveCart(updated);
   };
-
-  const removeItem = (id) => {
-    const updated = cart.filter((item) => item._id !== id);
-    setCart(updated);
-    saveCart(updated);
-  };
-
-  const clearCart = () => {
-    setCart([]);
-    saveCart([]);
-  };
-
-  const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
 
   const placeOrderHandler = async () => {
     try {
       setError("");
 
-      const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+      const user = getUserInfo();
 
-      if (!userInfo || !userInfo.token) {
-        setError("Please login before placing an order.");
+      if (!user?.token) {
         navigate("/login");
         return;
       }
@@ -62,31 +80,49 @@ function Cart() {
         return;
       }
 
+      if (!deliveryTime || !deliveryAddress) {
+        setError("Delivery time and delivery address are required.");
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `Confirm your order?\nSubtotal: $${subtotal.toFixed(2)}\nDiscount: $${discount.toFixed(2)}\nTotal: $${total.toFixed(2)}`
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
       setSubmitting(true);
 
       const orderItems = cart.map((item) => ({
         menuItem: item._id,
-        name: item.name,
         qty: item.qty,
-        price: item.price,
+        specialInstructions: item.specialInstructions || note,
       }));
 
-      await axios.post(
-        "http://localhost:5000/api/orders",
-        {
-          orderItems,
-          totalPrice: total,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${userInfo.token}`,
-          },
-        }
-      );
+      const { data } = await api.post("/orders", {
+        orderItems,
+        paymentMethod,
+        deliveryTime,
+        deliveryAddress,
+        note,
+        useCoupon,
+        saveNoteAsPreference,
+        saveAddressAsPreference,
+      });
 
-      saveCart([]);
+      clearCart();
       setCart([]);
-      alert("Order placed successfully!");
+
+      try {
+        const profileResponse = await api.get("/auth/profile");
+        updateStoredUserProfile(profileResponse.data);
+      } catch {
+        // optional refresh
+      }
+
+      alert(data.message || "Order placed successfully.");
       navigate("/orders");
     } catch (err) {
       setError(err.response?.data?.message || "Failed to place order");
@@ -95,138 +131,151 @@ function Cart() {
     }
   };
 
-  return (
-    <div style={styles.container}>
-      <h2 style={styles.title}>Your Cart 🛒</h2>
+  const clearHandler = () => {
+    clearCart();
+    setCart([]);
+  };
 
-      {error && <p style={styles.error}>{error}</p>}
+  return (
+    <div className="page">
+      <div className="section-title">
+        <h2>Your Cart</h2>
+        <p>Review your items, choose payment method and enter delivery details.</p>
+      </div>
+
+      {error && <div className="alert error">{error}</div>}
 
       {cart.length === 0 ? (
-        <p style={styles.empty}>Your cart is empty</p>
+        <div className="card center">Your cart is empty.</div>
       ) : (
-        <>
-          {cart.map((item) => (
-            <div key={item._id} style={styles.card}>
-              <div>
-                <h3>{item.name}</h3>
-                <p>${item.price}</p>
-              </div>
+        <div className="cart-layout">
+          <div>
+            {cart.map((item, index) => (
+              <div className="cart-item" key={`${item._id}-${index}`}>
+                <div>
+                  <h3>{item.name}</h3>
+                  <p className="muted">
+                    {item.itemType} · {item.dietaryCategory}
+                  </p>
 
-              <div style={styles.controls}>
-                <button style={styles.qtyBtn} onClick={() => decreaseQty(item._id)}>
-                  -
-                </button>
-                <span>{item.qty}</span>
-                <button style={styles.qtyBtn} onClick={() => increaseQty(item._id)}>
-                  +
+                  {item.itemType === "package" && item.packageItems?.length > 0 && (
+                    <ul className="small">
+                      {item.packageItems.map((p, i) => (
+                        <li key={i}>
+                          {p.name} × {p.quantity}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {item.specialInstructions && (
+                    <p className="small">Note: {item.specialInstructions}</p>
+                  )}
+
+                  <strong>${Number(item.price).toFixed(2)}</strong>
+                </div>
+
+                <div className="qty-control">
+                  <button onClick={() => qtyHandler(item, item.qty - 1)}>-</button>
+                  <span>{item.qty}</span>
+                  <button onClick={() => qtyHandler(item, item.qty + 1)}>+</button>
+                </div>
+
+                <button className="danger-btn" onClick={() => removeHandler(item)}>
+                  Remove
                 </button>
               </div>
+            ))}
+          </div>
 
-              <button
-                style={styles.remove}
-                onClick={() => removeItem(item._id)}
-              >
-                Remove
-              </button>
+          <div className="checkout-card">
+            <h3>Checkout</h3>
+
+            <label>Payment Method</label>
+            <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+              <option value="credit_card">Credit Card</option>
+              <option value="debit_card">Debit Card</option>
+              <option value="campus_account">Campus Account</option>
+              <option value="mobile_wallet">Mobile Wallet</option>
+            </select>
+
+            <label>Delivery Time</label>
+            <input
+              placeholder="e.g. 2026-05-06 12:30"
+              value={deliveryTime}
+              onChange={(e) => setDeliveryTime(e.target.value)}
+            />
+
+            <label>Delivery Address</label>
+            <input
+              placeholder="Enter delivery location"
+              value={deliveryAddress}
+              onChange={(e) => setDeliveryAddress(e.target.value)}
+            />
+
+            <label>Order Note</label>
+            <textarea
+              placeholder="Extra instructions for this order"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={saveNoteAsPreference}
+                onChange={(e) => setSaveNoteAsPreference(e.target.checked)}
+              />
+              Save this note as my default preference
+            </label>
+
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={saveAddressAsPreference}
+                onChange={(e) => setSaveAddressAsPreference(e.target.checked)}
+              />
+              Save this delivery address
+            </label>
+
+            {availableCoupon && (
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={useCoupon}
+                  onChange={(e) => setUseCoupon(e.target.checked)}
+                />
+                Use ${availableCoupon.amount} coupon
+              </label>
+            )}
+
+            <div className="price-summary">
+              <p>
+                <span>Subtotal</span>
+                <strong>${subtotal.toFixed(2)}</strong>
+              </p>
+              <p>
+                <span>Discount</span>
+                <strong>-${discount.toFixed(2)}</strong>
+              </p>
+              <p className="total-line">
+                <span>Total</span>
+                <strong>${total.toFixed(2)}</strong>
+              </p>
             </div>
-          ))}
 
-          <h3 style={styles.total}>Total: ${total.toFixed(2)}</h3>
+            <button className="primary-btn full" onClick={placeOrderHandler} disabled={submitting}>
+              {submitting ? "Placing Order..." : "Pay and Place Order"}
+            </button>
 
-          <div style={styles.actions}>
-            <button style={styles.clear} onClick={clearCart}>
+            <button className="secondary-btn full" onClick={clearHandler}>
               Clear Cart
             </button>
-
-            <button
-              style={styles.checkout}
-              onClick={placeOrderHandler}
-              disabled={submitting}
-            >
-              {submitting ? "Placing Order..." : "Place Order"}
-            </button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
 }
-
-const styles = {
-  container: {
-    maxWidth: "750px",
-    margin: "auto",
-    padding: "20px",
-  },
-  title: {
-    textAlign: "center",
-    marginBottom: "20px",
-  },
-  empty: {
-    textAlign: "center",
-    color: "#777",
-  },
-  error: {
-    color: "red",
-    textAlign: "center",
-    marginBottom: "15px",
-  },
-  card: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    border: "1px solid #ddd",
-    padding: "15px",
-    marginBottom: "12px",
-    borderRadius: "10px",
-    backgroundColor: "#fafafa",
-  },
-  controls: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-  },
-  qtyBtn: {
-    padding: "5px 10px",
-    border: "none",
-    borderRadius: "5px",
-    cursor: "pointer",
-  },
-  remove: {
-    backgroundColor: "#dc3545",
-    color: "white",
-    border: "none",
-    padding: "8px 12px",
-    borderRadius: "5px",
-    cursor: "pointer",
-  },
-  total: {
-    marginTop: "20px",
-    textAlign: "right",
-  },
-  actions: {
-    display: "flex",
-    gap: "10px",
-    marginTop: "20px",
-  },
-  clear: {
-    flex: 1,
-    padding: "10px",
-    backgroundColor: "#333",
-    color: "white",
-    border: "none",
-    borderRadius: "5px",
-    cursor: "pointer",
-  },
-  checkout: {
-    flex: 1,
-    padding: "10px",
-    backgroundColor: "green",
-    color: "white",
-    border: "none",
-    borderRadius: "5px",
-    cursor: "pointer",
-  },
-};
 
 export default Cart;

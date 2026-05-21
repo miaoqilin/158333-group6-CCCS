@@ -1,78 +1,85 @@
 import { useState } from "react";
-import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
+import api from "../services/api";
+import { saveUserInfo } from "../utils/auth";
 
 function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const navigate = useNavigate();
+
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+  });
+
   const [error, setError] = useState("");
 
-  const navigate = useNavigate();
+  const changeHandler = (e) => {
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value,
+    });
+  };
 
   const submitHandler = async (e) => {
     e.preventDefault();
 
     try {
-      const { data } = await axios.post(
-        "http://localhost:5000/api/auth/login",
-        { email, password }
-      );
+      setError("");
 
-      localStorage.setItem("userInfo", JSON.stringify(data));
+      const { data } = await api.post("/auth/login", form);
 
-      navigate("/profile");
+      saveUserInfo(data);
 
+      if (data.role === "admin") {
+        navigate("/admin");
+      } else if (data.role === "vendor") {
+        navigate("/vendor");
+      } else {
+        navigate("/profile");
+      }
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");
     }
   };
 
   return (
-    <div style={styles.container}>
-      <h2>Login</h2>
+    <div className="page narrow">
+      <div className="auth-card">
+        <h2>Login</h2>
+        <p>Access your Campus Coffee account.</p>
 
-      {error && <p style={styles.error}>{error}</p>}
+        {error && <div className="alert error">{error}</div>}
 
-      <form onSubmit={submitHandler} style={styles.form}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <form onSubmit={submitHandler} className="form">
+          <label>Email</label>
+          <input
+            name="email"
+            type="email"
+            value={form.email}
+            onChange={changeHandler}
+            required
+          />
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+          <label>Password</label>
+          <input
+            name="password"
+            type="password"
+            value={form.password}
+            onChange={changeHandler}
+            required
+          />
 
-        <button type="submit">Login</button>
-      </form>
+          <button className="primary-btn full" type="submit">
+            Login
+          </button>
+        </form>
 
-      <p>
-        New user? <Link to="/register">Register</Link>
-      </p>
+        <p className="muted center">
+          New user? <Link to="/register">Register here</Link>
+        </p>
+      </div>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    maxWidth: "400px",
-    margin: "auto",
-    padding: "30px",
-    textAlign: "center",
-  },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-  },
-  error: {
-    color: "red",
-  },
-};
 
 export default Login;

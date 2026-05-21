@@ -1,85 +1,145 @@
 import { useState } from "react";
-import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
+import api from "../services/api";
 
 function Register() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const navigate = useNavigate();
+
+  const [accountType, setAccountType] = useState("student");
   const [error, setError] = useState("");
 
-  const navigate = useNavigate();
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    phone: "",
+    businessName: "",
+    businessDescription: "",
+    businessAddress: "",
+    businessPhone: "",
+  });
+
+  const changeHandler = (e) => {
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value,
+    });
+  };
 
   const submitHandler = async (e) => {
     e.preventDefault();
 
     try {
-      await axios.post("http://localhost:5000/api/auth/register", {
-        name,
-        email,
-        password,
-      });
+      setError("");
 
-      alert("Register successful!");
+      if (accountType === "vendor") {
+        await api.post("/auth/register-vendor", form);
+        alert("Vendor registered. Please wait for admin approval.");
+      } else {
+        await api.post("/auth/register", form);
+        alert("Registration successful.");
+      }
+
       navigate("/login");
-
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed");
     }
   };
 
   return (
-    <div style={styles.container}>
-      <h2>Register</h2>
+    <div className="page narrow">
+      <div className="auth-card">
+        <h2>Create Account</h2>
+        <p>Register as a customer or campus food vendor.</p>
 
-      {error && <p style={styles.error}>{error}</p>}
+        {error && <div className="alert error">{error}</div>}
 
-      <form onSubmit={submitHandler} style={styles.form}>
-        <input
-          placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+        <div className="tabs">
+          <button
+            className={accountType === "student" ? "active" : ""}
+            onClick={() => setAccountType("student")}
+            type="button"
+          >
+            Customer
+          </button>
+          <button
+            className={accountType === "vendor" ? "active" : ""}
+            onClick={() => setAccountType("vendor")}
+            type="button"
+          >
+            Vendor
+          </button>
+        </div>
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <form onSubmit={submitHandler} className="form">
+          <label>Name</label>
+          <input name="name" value={form.name} onChange={changeHandler} required />
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+          <label>Email</label>
+          <input
+            name="email"
+            type="email"
+            value={form.email}
+            onChange={changeHandler}
+            required
+          />
 
-        <button type="submit">Register</button>
-      </form>
+          <label>Password</label>
+          <input
+            name="password"
+            type="password"
+            value={form.password}
+            onChange={changeHandler}
+            required
+          />
 
-      <p>
-        Already have an account? <Link to="/login">Login</Link>
-      </p>
+          <label>Phone</label>
+          <input name="phone" value={form.phone} onChange={changeHandler} />
+
+          {accountType === "vendor" && (
+            <>
+              <label>Business Name</label>
+              <input
+                name="businessName"
+                value={form.businessName}
+                onChange={changeHandler}
+                required
+              />
+
+              <label>Business Description</label>
+              <textarea
+                name="businessDescription"
+                value={form.businessDescription}
+                onChange={changeHandler}
+              />
+
+              <label>Business Address</label>
+              <input
+                name="businessAddress"
+                value={form.businessAddress}
+                onChange={changeHandler}
+              />
+
+              <label>Business Phone</label>
+              <input
+                name="businessPhone"
+                value={form.businessPhone}
+                onChange={changeHandler}
+              />
+            </>
+          )}
+
+          <button className="primary-btn full" type="submit">
+            Register
+          </button>
+        </form>
+
+        <p className="muted center">
+          Already have an account? <Link to="/login">Login</Link>
+        </p>
+      </div>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    maxWidth: "400px",
-    margin: "auto",
-    padding: "30px",
-    textAlign: "center",
-  },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-  },
-  error: {
-    color: "red",
-  },
-};
 
 export default Register;

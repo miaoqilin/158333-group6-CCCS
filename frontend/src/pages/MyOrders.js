@@ -1,111 +1,81 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
+import { Link } from "react-router-dom";
 
 function MyOrders() {
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const fetchOrders = async () => {
+    try {
+      const { data } = await api.get("/orders/my");
+      setOrders(data);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to load orders");
+    }
+  };
+
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const userInfo = JSON.parse(localStorage.getItem("userInfo"));
-
-        if (!userInfo || !userInfo.token) {
-          setError("Please login first.");
-          setLoading(false);
-          return;
-        }
-
-        const { data } = await axios.get(
-          "http://localhost:5000/api/orders/my",
-          {
-            headers: {
-              Authorization: `Bearer ${userInfo.token}`,
-            },
-          }
-        );
-
-        setOrders(data);
-      } catch (err) {
-        setError(err.response?.data?.message || "Failed to load orders");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchOrders();
   }, []);
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.title}>My Orders</h2>
+    <div className="page">
+      <div className="section-title">
+        <h2>My Orders</h2>
+        <p>View your order history, delivery details and payment status.</p>
+      </div>
 
-      {loading && <p>Loading...</p>}
-      {error && <p style={styles.error}>{error}</p>}
+      {error && <div className="alert error">{error}</div>}
 
-      {!loading && !error && orders.length === 0 && (
-        <p>No orders found.</p>
-      )}
+      {orders.length === 0 ? (
+        <div className="card center">No orders found.</div>
+      ) : (
+        <div className="stack">
+          {orders.map((order) => (
+            <div className="card" key={order._id}>
+              <div className="card-header-row">
+                <h3>Order #{order._id.slice(-6)}</h3>
+                <span className="badge accent">{order.status}</span>
+              </div>
 
-      {orders.map((order) => (
-        <div key={order._id} style={styles.card}>
-          <div style={styles.row}>
-            <strong>Order ID:</strong>
-            <span>{order._id}</span>
-          </div>
+              <p className="small">Delivery Time: {order.deliveryTime}</p>
+              <p className="small">Delivery Address: {order.deliveryAddress}</p>
+              <p className="small">Payment: {order.paymentMethod} · {order.paymentStatus}</p>
 
-          <div style={styles.row}>
-            <strong>Status:</strong>
-            <span>{order.status}</span>
-          </div>
+              <ul>
+                {order.orderItems.map((item, index) => (
+                  <li key={index}>
+                    {item.name} × {item.qty} — ${item.price}
+                    {item.itemType === "package" && " (Package)"}
+                  </li>
+                ))}
+              </ul>
 
-          <div style={styles.row}>
-            <strong>Total:</strong>
-            <span>${order.totalPrice.toFixed(2)}</span>
-          </div>
+              <div className="price-summary">
+                <p>
+                  <span>Subtotal</span>
+                  <strong>${Number(order.subtotalPrice || order.totalPrice).toFixed(2)}</strong>
+                </p>
+                <p>
+                  <span>Discount</span>
+                  <strong>-${Number(order.discountAmount || 0).toFixed(2)}</strong>
+                </p>
+                <p className="total-line">
+                  <span>Total</span>
+                  <strong>${Number(order.totalPrice).toFixed(2)}</strong>
+                </p>
+              </div>
 
-          <div style={styles.row}>
-            <strong>Items:</strong>
-          </div>
-
-          <ul>
-            {order.orderItems.map((item, index) => (
-              <li key={index}>
-                {item.name} × {item.qty} (${item.price})
-              </li>
-            ))}
-          </ul>
+              <Link to="/feedback" className="secondary-btn">
+                Leave Feedback
+              </Link>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }
-
-const styles = {
-  container: {
-    maxWidth: "800px",
-    margin: "auto",
-    padding: "20px",
-  },
-  title: {
-    textAlign: "center",
-    marginBottom: "20px",
-  },
-  error: {
-    color: "red",
-    textAlign: "center",
-  },
-  card: {
-    border: "1px solid #ddd",
-    borderRadius: "10px",
-    padding: "15px",
-    marginBottom: "15px",
-    backgroundColor: "#fafafa",
-  },
-  row: {
-    marginBottom: "8px",
-  },
-};
 
 export default MyOrders;
