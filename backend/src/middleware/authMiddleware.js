@@ -19,6 +19,10 @@ const protect = async (req, res, next) => {
         return res.status(401).json({ message: "User not found for this token" });
       }
 
+      if (!user.isActive) {
+        return res.status(403).json({ message: "This account has been disabled" });
+      }
+
       req.user = user;
       return next();
     } catch (error) {
@@ -37,4 +41,34 @@ const admin = (req, res, next) => {
   return res.status(403).json({ message: "Admin access only" });
 };
 
-module.exports = { protect, admin };
+const vendor = (req, res, next) => {
+  if (req.user && req.user.role === "vendor") {
+    if (req.user.vendorStatus !== "approved") {
+      return res.status(403).json({
+        message: "Vendor account is not approved yet",
+      });
+    }
+
+    return next();
+  }
+
+  return res.status(403).json({ message: "Vendor access only" });
+};
+
+const adminOrVendor = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Not authorized" });
+  }
+
+  if (req.user.role === "admin") {
+    return next();
+  }
+
+  if (req.user.role === "vendor" && req.user.vendorStatus === "approved") {
+    return next();
+  }
+
+  return res.status(403).json({ message: "Admin or approved vendor access only" });
+};
+
+module.exports = { protect, admin, vendor, adminOrVendor };

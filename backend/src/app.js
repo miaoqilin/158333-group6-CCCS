@@ -6,6 +6,11 @@ const cors = require("cors");
 const authRoutes = require("./routes/auth");
 const menuRoutes = require("./routes/menu");
 const orderRoutes = require("./routes/orders");
+const adminRoutes = require("./routes/admin");
+const vendorRoutes = require("./routes/vendor");
+const feedbackRoutes = require("./routes/feedback");
+const aiRoutes = require("./routes/ai");
+
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 
 dotenv.config();
@@ -28,6 +33,10 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/menu", menuRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/vendor", vendorRoutes);
+app.use("/api/feedback", feedbackRoutes);
+app.use("/api/ai", aiRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
