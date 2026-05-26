@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Live2DAssistant from "../components/Live2DAssistant";
+
 import Navbar from "../components/Navbar";
 import ProtectedRoute from "../components/ProtectedRoute";
 import RoleRoute from "../components/RoleRoute";
@@ -185,7 +185,6 @@ export default function AppRouter() {
           }
         />
       </Routes>
-      <Live2DAssistant />
     </BrowserRouter>
   );
 }
