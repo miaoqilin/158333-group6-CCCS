@@ -90,15 +90,27 @@ function VendorAnalytics() {
           </button>
 
           {ai && (
-            <div className="card ai-box">
-              <h3>AI Restaurant Business Analysis</h3>
-              {ai.aiAnalysis ? (
-                <pre>{ai.aiAnalysis}</pre>
-              ) : (
-                <p>{ai.message || "No AI analysis available."}</p>
-              )}
-            </div>
-          )}
+  <div className="card ai-box">
+    <div className="card-header-row">
+      <h3>AI Restaurant Business Analysis</h3>
+      <span className="badge accent">
+        {ai.aiSuccess ? `Gemini · ${ai.model}` : "Fallback"}
+      </span>
+    </div>
+
+    {ai.aiError && (
+      <div className="alert error">
+        Gemini error: {ai.aiError}
+      </div>
+    )}
+
+    {ai.aiAnalysis ? (
+      <pre>{ai.aiAnalysis}</pre>
+    ) : (
+      <p>No AI analysis available.</p>
+    )}
+  </div>
+)}
         </>
       )}
     </DashboardLayout>
