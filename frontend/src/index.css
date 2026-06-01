@@ -577,8 +577,8 @@ th {
   position: fixed;
   right: 18px;
   bottom: 18px;
-  z-index: 999;
-  width: 280px;
+  z-index: 9999;
+  width: 340px;
   pointer-events: none;
 }
 
@@ -587,56 +587,13 @@ th {
   height: 360px;
   pointer-events: auto;
   margin-left: auto;
+  overflow: visible;
 }
 
 .live2d-canvas-wrap canvas {
   width: 260px !important;
   height: 360px !important;
-}
-
-.live2d-bubble {
-  pointer-events: auto;
-  background: #ffffff;
-  border: 1px solid #e3e5e8;
-  border-radius: 16px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
-  padding: 14px;
-  margin-bottom: 8px;
-  max-height: 260px;
-  overflow-y: auto;
-}
-
-.live2d-bubble-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: #4b2e2b;
-  margin-bottom: 8px;
-}
-
-.live2d-bubble-header button {
-  border: none;
-  background: #f1f1f1;
-  border-radius: 50%;
-  width: 26px;
-  height: 26px;
-  font-size: 18px;
-}
-
-.live2d-bubble p {
-  margin: 8px 0 12px;
-  color: #333;
-  line-height: 1.5;
-  font-size: 14px;
-}
-
-.live2d-small-btn {
-  border: none;
-  background: #d9822b;
-  color: white;
-  border-radius: 999px;
-  padding: 8px 12px;
-  font-weight: 700;
+  display: block;
 }
 
 .live2d-click-tip {
@@ -653,65 +610,26 @@ th {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
 }
 
-@media (max-width: 768px) {
-  .live2d-assistant {
-    right: 8px;
-    bottom: 8px;
-    width: 210px;
-  }
-
-  .live2d-canvas-wrap {
-    width: 200px;
-    height: 280px;
-  }
-
-  .live2d-canvas-wrap canvas {
-    width: 200px !important;
-    height: 280px !important;
-  }
-
-  .live2d-bubble {
-    max-height: 220px;
-    font-size: 13px;
-  }
-}
-
-.live2d-input-area {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.live2d-input-area input {
-  flex: 1;
+.live2d-bubble {
+  pointer-events: auto;
+  background: #ffffff;
   border: 1px solid #e3e5e8;
-  border-radius: 999px;
-  padding: 8px 12px;
-  font-size: 13px;
+  border-radius: 16px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+  padding: 14px;
+  margin-bottom: 8px;
+  max-height: 330px;
+  overflow-y: auto;
 }
 
-.live2d-input-area button {
-  border: none;
-  background: #d9822b;
-  color: white;
-  border-radius: 999px;
-  padding: 8px 12px;
-  font-weight: 700;
-}
-
-.live2d-quick-buttons {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-
-.live2d-quick-buttons button {
-  border: none;
-  background: #fff7e6;
-  color: #b86418;
-  border-radius: 999px;
-  padding: 6px 9px;
+.live2d-error {
+  pointer-events: auto;
+  background: #fdecea;
+  color: #c0392b;
+  border: 1px solid #f2b8b5;
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 8px;
   font-size: 12px;
-  font-weight: 700;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
