@@ -9,6 +9,7 @@ const MODEL_PATH = "/live2d/haru_greeter_pro_jp/runtime/haru_greeter_t05.model3.
 
 function Live2DAssistant() {
   const containerRef = useRef(null);
+  const initializedRef = useRef(false);
   const appRef = useRef(null);
   const modelRef = useRef(null);
 
@@ -18,29 +19,66 @@ function Live2DAssistant() {
     "Hi! Tell me what you want to eat, and I will recommend something from the menu."
   );
   const [loading, setLoading] = useState(false);
+  const [modelError, setModelError] = useState("");
 
   useEffect(() => {
-    let destroyed = false;
+    let cancelled = false;
 
     const initLive2D = async () => {
-      if (!containerRef.current || appRef.current) {
+      console.log("[Live2D] initLive2D started");
+console.log("[Live2D] containerRef:", containerRef.current);
+console.log("[Live2D] MODEL_PATH:", MODEL_PATH);
+      if (initializedRef.current) {
         return;
       }
 
+      if (!containerRef.current) {
+        return;
+      }
+
+      initializedRef.current = true;
+
       try {
+        setModelError("");
+
+        const checkResponse = await fetch(MODEL_PATH);
+        const checkText = await checkResponse.text();
+
+        if (!checkResponse.ok) {
+          throw new Error(`Model file request failed: ${checkResponse.status}`);
+        }
+
+        if (
+          checkText.trim().startsWith("<!DOCTYPE html") ||
+          checkText.trim().startsWith("<html")
+        ) {
+          throw new Error(
+            "MODEL_PATH is wrong. React returned index.html instead of model3.json."
+          );
+        }
+
+        JSON.parse(checkText);
+
         const app = new PIXI.Application({
           width: 260,
           height: 360,
-          transparent: true,
+          backgroundAlpha: 0,
           autoStart: true,
+          antialias: true,
         });
 
+        if (cancelled || !containerRef.current) {
+          app.destroy(true);
+          return;
+        }
+
         appRef.current = app;
+        containerRef.current.innerHTML = "";
         containerRef.current.appendChild(app.view);
 
         const model = await Live2DModel.from(MODEL_PATH);
 
-        if (destroyed) {
+        if (cancelled) {
           model.destroy();
           return;
         }
@@ -49,7 +87,7 @@ function Live2DAssistant() {
 
         model.scale.set(0.09);
         model.x = 130;
-        model.y = 390;
+        model.y = 330;
         model.anchor.set(0.5, 1);
 
         model.interactive = true;
@@ -60,30 +98,19 @@ function Live2DAssistant() {
         });
 
         app.stage.addChild(model);
+
+        console.log("[Live2D] Model loaded successfully:", MODEL_PATH);
       } catch (error) {
-        console.error("Failed to load Live2D model:", error);
-        setSuggestion("Live2D model failed to load. Please check your model path.");
+        console.error("[Live2D] Failed to load model:", error);
+        setModelError(error.message || "Failed to load Live2D model.");
+        initializedRef.current = false;
       }
     };
 
     initLive2D();
 
     return () => {
-      destroyed = true;
-
-      if (modelRef.current) {
-        modelRef.current.destroy();
-        modelRef.current = null;
-      }
-
-      if (appRef.current) {
-        appRef.current.destroy(true, {
-          children: true,
-          texture: true,
-          baseTexture: true,
-        });
-        appRef.current = null;
-      }
+      cancelled = true;
     };
   }, []);
 
@@ -94,16 +121,13 @@ function Live2DAssistant() {
 
       const cleanQuery = query.trim();
 
-      setSuggestion(
-        cleanQuery
-          ? "Thinking about your request..."
-          : "Please type what you want to eat first."
-      );
-
       if (!cleanQuery) {
+        setSuggestion("Please type what you want to eat first.");
         setLoading(false);
         return;
       }
+
+      setSuggestion("Thinking about your request...");
 
       const { data } = await api.get("/ai/package-suggestion", {
         params: {
@@ -168,6 +192,12 @@ function Live2DAssistant() {
               Coffee dessert
             </button>
           </div>
+        </div>
+      )}
+
+      {modelError && (
+        <div className="live2d-error">
+          Live2D failed: {modelError}
         </div>
       )}
 
