@@ -32,7 +32,7 @@ const callGemini = async (prompt) => {
           ],
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 700,
+            maxOutputTokens: 2000,
           },
         }),
       }
@@ -70,6 +70,8 @@ const callGemini = async (prompt) => {
 };
 
 const buildVendorAnalyticsData = async (vendorId) => {
+  const vendorIdString = vendorId.toString();
+
   const orders = await Order.find({
     "orderItems.vendor": vendorId,
     status: { $ne: "cancelled" },
@@ -88,57 +90,92 @@ const buildVendorAnalyticsData = async (vendorId) => {
   const statusMap = {};
 
   orders.forEach((order) => {
-    statusMap[order.status] = (statusMap[order.status] || 0) + 1;
+    statusMap[order.status || "unknown"] =
+      (statusMap[order.status || "unknown"] || 0) + 1;
 
     order.orderItems.forEach((item) => {
-      if (item.vendor.toString() !== vendorId.toString()) {
+      if (!item.vendor) {
         return;
       }
 
-      const itemId = item.menuItem?._id?.toString() || item.menuItem.toString();
+      if (item.vendor.toString() !== vendorIdString) {
+        return;
+      }
+
+      const itemId =
+        item.menuItem?._id?.toString() ||
+        item.menuItem?.toString() ||
+        "unknown-item";
+
+      const itemName = item.name || item.menuItem?.name || "Unknown item";
+
+      const category =
+        item.menuItem?.category || item.category || "unknown";
+
+      const dietaryCategory =
+        item.dietaryCategory ||
+        item.menuItem?.dietaryCategory ||
+        "unknown";
+
+      const itemType =
+        item.itemType ||
+        item.menuItem?.itemType ||
+        "single";
+
+      const qty = Number(item.qty || 0);
+      const price = Number(item.price || 0);
 
       if (!itemMap[itemId]) {
         itemMap[itemId] = {
-          name: item.name,
-          category: item.menuItem?.category || "",
-          dietaryCategory: item.dietaryCategory,
-          itemType: item.itemType,
+          name: itemName,
+          category,
+          dietaryCategory,
+          itemType,
           totalQty: 0,
           totalRevenue: 0,
         };
       }
 
-      itemMap[itemId].totalQty += item.qty;
-      itemMap[itemId].totalRevenue += item.qty * item.price;
+      itemMap[itemId].totalQty += qty;
+      itemMap[itemId].totalRevenue += qty * price;
 
-      categoryMap[item.dietaryCategory] = categoryMap[item.dietaryCategory] || {
-        totalQty: 0,
-        totalRevenue: 0,
-      };
+      if (!categoryMap[dietaryCategory]) {
+        categoryMap[dietaryCategory] = {
+          totalQty: 0,
+          totalRevenue: 0,
+        };
+      }
 
-      categoryMap[item.dietaryCategory].totalQty += item.qty;
-      categoryMap[item.dietaryCategory].totalRevenue += item.qty * item.price;
+      categoryMap[dietaryCategory].totalQty += qty;
+      categoryMap[dietaryCategory].totalRevenue += qty * price;
 
-      totalQuantitySold += item.qty;
-      totalRevenue += item.qty * item.price;
+      totalQuantitySold += qty;
+      totalRevenue += qty * price;
     });
   });
 
   feedback.forEach((f) => {
-    const itemId = f.menuItem?._id?.toString() || f.menuItem.toString();
+    const itemId =
+      f.menuItem?._id?.toString() ||
+      f.menuItem?.toString() ||
+      "unknown-feedback-item";
 
-    feedbackMap[itemId] = feedbackMap[itemId] || {
-      itemName: f.menuItem?.name || "Unknown item",
-      ratings: [],
-      comments: [],
-      sentiments: {
-        positive: 0,
-        neutral: 0,
-        negative: 0,
-      },
-    };
+    const itemName = f.menuItem?.name || "Unknown item";
 
-    feedbackMap[itemId].ratings.push(f.rating);
+    if (!feedbackMap[itemId]) {
+      feedbackMap[itemId] = {
+        itemName,
+        ratings: [],
+        comments: [],
+        sentiments: {
+          positive: 0,
+          neutral: 0,
+          negative: 0,
+        },
+      };
+    }
+
+    feedbackMap[itemId].ratings.push(Number(f.rating || 0));
 
     if (feedbackMap[itemId].sentiments[f.sentiment] !== undefined) {
       feedbackMap[itemId].sentiments[f.sentiment] += 1;
@@ -190,7 +227,7 @@ Use clear bullet points.
     const geminiResult = await callGemini(prompt);
 
     if (!geminiResult.success) {
-      return res.json({
+      return res.status(200).json({
         aiProvider: "fallback",
         aiSuccess: false,
         aiError: geminiResult.error,
@@ -210,7 +247,19 @@ Use clear bullet points.
       aiAnalysis: geminiResult.text,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    console.error("========== VENDOR AI ANALYSIS ERROR ==========");
+    console.error(error);
+    console.error("=============================================");
+
+    return res.status(200).json({
+      aiProvider: "fallback",
+      aiSuccess: false,
+      aiError: error.message,
+      model: process.env.GEMINI_MODEL || "gemini-2.0-flash",
+      analyticsData: null,
+      aiAnalysis:
+        "Vendor AI analysis could not be generated because the analytics data contains invalid or old records. Please create a new order with the current system and try again.",
+    });
   }
 };
 
@@ -265,7 +314,7 @@ const getLive2dPackageSuggestion = async (req, res) => {
     };
 
     const prompt = `
-You are a cute but useful Live2D anime ordering assistant on a campus coffee and catering website.
+You are a useful Live2D anime ordering assistant on a campus coffee and catering website.
 
 Current date and time:
 ${now.toLocaleString()}
@@ -340,7 +389,24 @@ Rules:
       },
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    console.error("========== LIVE2D AI ERROR ==========");
+    console.error(error);
+    console.error("====================================");
+
+    return res.status(200).json({
+      currentTime: new Date().toISOString(),
+      suggestion:
+        "Sorry, I could not generate a recommendation right now because the AI service or menu data is not available.",
+      aiProvider: "fallback",
+      aiSuccess: false,
+      aiError: error.message,
+      model: process.env.GEMINI_MODEL || "gemini-2.0-flash",
+      userQuery: String(req.query.query || "").trim(),
+      menuCount: {
+        packages: 0,
+        singles: 0,
+      },
+    });
   }
 };
 

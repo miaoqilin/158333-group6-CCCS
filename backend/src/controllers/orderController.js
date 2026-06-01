@@ -378,10 +378,10 @@ const getVendorOrders = async (req, res) => {
 
 const getVendorAnalytics = async (req, res) => {
   try {
-    const vendorId = req.user._id;
+    const vendorId = req.user._id.toString();
 
     const orders = await Order.find({
-      "orderItems.vendor": vendorId,
+      "orderItems.vendor": req.user._id,
       status: { $ne: "cancelled" },
     }).populate("orderItems.menuItem", "name category dietaryCategory image itemType");
 
@@ -394,40 +394,73 @@ const getVendorAnalytics = async (req, res) => {
     const statusMap = {};
 
     orders.forEach((order) => {
-      statusMap[order.status] = (statusMap[order.status] || 0) + 1;
+      statusMap[order.status || "unknown"] =
+        (statusMap[order.status || "unknown"] || 0) + 1;
 
       order.orderItems.forEach((item) => {
-        if (item.vendor.toString() !== vendorId.toString()) {
+        if (!item.vendor) {
           return;
         }
 
-        const itemId = item.menuItem?._id?.toString() || item.menuItem.toString();
+        if (item.vendor.toString() !== vendorId) {
+          return;
+        }
 
-        if (!itemMap[itemId]) {
-          itemMap[itemId] = {
-            menuItem: itemId,
-            name: item.name,
-            category: item.menuItem?.category || "",
-            dietaryCategory: item.dietaryCategory,
-            itemType: item.itemType,
+        const menuItemId =
+          item.menuItem?._id?.toString() ||
+          item.menuItem?.toString() ||
+          "unknown-item";
+
+        const itemName =
+          item.name ||
+          item.menuItem?.name ||
+          "Unknown item";
+
+        const itemCategory =
+          item.menuItem?.category ||
+          item.category ||
+          "unknown";
+
+        const dietaryCategory =
+          item.dietaryCategory ||
+          item.menuItem?.dietaryCategory ||
+          "unknown";
+
+        const itemType =
+          item.itemType ||
+          item.menuItem?.itemType ||
+          "single";
+
+        const qty = Number(item.qty || 0);
+        const price = Number(item.price || 0);
+
+        if (!itemMap[menuItemId]) {
+          itemMap[menuItemId] = {
+            menuItem: menuItemId,
+            name: itemName,
+            category: itemCategory,
+            dietaryCategory,
+            itemType,
             totalQty: 0,
             totalRevenue: 0,
           };
         }
 
-        itemMap[itemId].totalQty += item.qty;
-        itemMap[itemId].totalRevenue += item.qty * item.price;
+        itemMap[menuItemId].totalQty += qty;
+        itemMap[menuItemId].totalRevenue += qty * price;
 
-        categoryMap[item.dietaryCategory] = categoryMap[item.dietaryCategory] || {
-          totalQty: 0,
-          totalRevenue: 0,
-        };
+        if (!categoryMap[dietaryCategory]) {
+          categoryMap[dietaryCategory] = {
+            totalQty: 0,
+            totalRevenue: 0,
+          };
+        }
 
-        categoryMap[item.dietaryCategory].totalQty += item.qty;
-        categoryMap[item.dietaryCategory].totalRevenue += item.qty * item.price;
+        categoryMap[dietaryCategory].totalQty += qty;
+        categoryMap[dietaryCategory].totalRevenue += qty * price;
 
-        totalQuantitySold += item.qty;
-        totalRevenue += item.qty * item.price;
+        totalQuantitySold += qty;
+        totalRevenue += qty * price;
       });
     });
 
@@ -445,6 +478,9 @@ const getVendorAnalytics = async (req, res) => {
       bestSeller: itemSales[0] || null,
     });
   } catch (error) {
+    console.error("========== VENDOR ANALYTICS ERROR ==========");
+    console.error(error);
+    console.error("===========================================");
     return res.status(500).json({ message: error.message });
   }
 };
